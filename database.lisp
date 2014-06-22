@@ -19,6 +19,9 @@
    (schema :accessor schema :initarg :schema :initform nil))
   (:documentation "Attaches a connection/schema to one object."))
 
+(defvar *db* nil
+  "Holds the current *default* database.")
+
 (defun db-open (location)
   "Open a database."
   (ensure-directories-exist location)

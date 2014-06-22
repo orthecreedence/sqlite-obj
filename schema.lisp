@@ -80,7 +80,7 @@
   (vom:debug "move-data: ~a -> ~a" from-table to-table)
   (sql-iterate-query (dbc db) (format nil "SELECT * FROM ~a" from-table)
                      (lambda (statement)
-                       (db-insert db from-table (statement-to-hash statement) :tmp-table to-table))))
+                       (db-insert from-table (statement-to-hash statement) :db db :tmp-table to-table))))
 
 (defun remove-indexes (db table-schema)
   "Delete the indexes from a table."
