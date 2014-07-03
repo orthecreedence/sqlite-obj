@@ -5,15 +5,6 @@
   (:report (lambda (c s) (format s "sqlite-obj error: ~a" (db-error-msg c))))
   (:documentation "General database error"))
 
-(define-condition db-already-open (db-error) ()
-  (:documentation "Thrown when a DB is being opened while another is open."))
-
-(define-condition db-not-open (db-error) ()
-  (:documentation "Thrown when operating on a closed database."))
-
-(define-condition db-missing-schema-entry (db-error) ()
-  (:documentation "Thrown when operating on a table that isn't in the current schema."))
-
 (defclass database ()
   ((sqlite-db :accessor dbc :initarg :dbc :initform nil)
    (schema :accessor schema :initarg :schema :initform nil))

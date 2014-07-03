@@ -111,6 +111,8 @@
         (rename-table db to-table from-table)))))
 
 (defun apply-schema (db schema)
+  "Reads the current schema, compares it to the given schema, and applies any
+   required changes."
   (setf (schema db) schema)
   (let* ((current (read-schema db))
          (current-tables (mapcar 'car current))

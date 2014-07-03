@@ -2,14 +2,12 @@
   (:use :cl :sqlite)
   (:nicknames :db)
   (:export :db-error
-           :db-already-open
-           :db-not-open
-           :dbc
-           :schema
            :*db*
            :db-open
            :db-close
 
+           :db-missing-schema-entry
+           :db-update-missing-id
            :apply-schema
 
            :db-get

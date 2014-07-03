@@ -3,7 +3,9 @@
   (:shadowing-import-from :sqlite-obj
                           :get)
   (:import-from :sqlite-obj
-                :database)
+                :database
+                :dbc
+                :schema)
   (:export :run-tests))
 (in-package :sqlite-obj-test)
 

@@ -1,5 +1,11 @@
 (in-package :sqlite-obj)
 
+(define-condition db-missing-schema-entry (db-error) ()
+  (:documentation "Thrown when operating on a table that isn't in the current schema."))
+
+(define-condition db-update-missing-id (db-error) ()
+  (:documentation "Thrown when an update is triggered on an object without an ID."))
+
 (defun sql-iterate-query (dbc query operate-fn &rest bindings)
   "Given a query, run the operate-fn on each of the results."
   (let ((statement (sqlite:prepare-statement dbc query))
