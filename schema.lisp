@@ -14,6 +14,7 @@
       (:pkey "nvarchar(32) primary key")
       (:id "nvarchar(32)")
       (:integer "integer")
+      (:float "float")
       (:string "nvarchar(255)")
       ;; 0 = false, 1 = true
       (:bool "tinyint")

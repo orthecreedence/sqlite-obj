@@ -2,6 +2,7 @@
   (:use :cl :sqlite)
   (:nicknames :db)
   (:export :db-error
+           :dbc
            :*db*
            :db-open
            :db-close
@@ -10,6 +11,7 @@
            :db-update-missing-id
            :apply-schema
 
+           :sql-to-objects
            :db-get
            :db-save
            :db-insert

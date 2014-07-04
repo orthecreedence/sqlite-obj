@@ -32,13 +32,13 @@
     (remhash "data" result)
     result))
 
-(defun sql-named-results (db query &rest bindings)
+(defun sql-to-objects (dbc query &rest bindings)
   "Returns the result(s) of the query as a hash table (col -> val). Only works
    with numbered parameters (not named)."
   (let* ((results nil)
          (operate-fn (lambda (statement)
                        (push (statement-to-hash statement) results))))
-    (apply 'sql-iterate-query (append (list db query operate-fn)
+    (apply 'sql-iterate-query (append (list dbc query operate-fn)
                                       bindings))
     (nreverse results)))
 

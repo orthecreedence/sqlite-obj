@@ -8,10 +8,12 @@ to search on, and it manages the schema and data transformations for you.
 ## Documentation
 
 - [database](#database-class)
+  - [dbc](#dbc-accessor)
 - [\*db\*](#db-variable)
 - [db-open](#db-open-function)
 - [db-close](#db-close-function)
 - [apply-schema](#apply-schema-function)
+- [sql-to-objects](#sql-to-objects-function)
 - [db-get](#db-get-function)
 - [db-save](#db-save-function)
 - [db-insert](#db-insert-function)
@@ -25,7 +27,11 @@ to search on, and it manages the schema and data transformations for you.
 
 ### database (class)
 Opaque class that holds a database connection and the current schema for that
-database.
+database. It has one accessor:
+
+#### dbc (acessor)
+Get the current `cl-sqlite` database connection for this database. Can be used
+to [run direct queries on the database](#sql-to-objects-function).
 
 ### \*db\* (variable)
 The default database variable. Although you can pass a database to most of the
@@ -76,11 +82,12 @@ Example:
   (apply-schema db schema))
 ```
 
-List of index field types: 
+List of index field types (and their translations to SQL):
 ```lisp
 '((:pkey "nvarchar(32) primary key")
   (:id "nvarchar(32)")
   (:integer "integer")
+  (:float "float")
   (:string "nvarchar(255)")
   ;; 0 = false, 1 = true
   (:bool "tinyint")
@@ -93,6 +100,26 @@ List of index field types:
 Note that sqlite-obj assumes 32-character strings as PKEYs/IDs. This is the
 requirement if the app it was built for. Most people will probably need numeric
 PKEYs, so just let me know and I'll figure out a way to appease everybody.
+
+### sql-to-objects (function)
+```lisp
+(defun sql-to-objects (dbc query &rest bindings))
+  => list-of-hashes
+```
+Takes a database connection (retrieved with [dbc](#dbc-accessor)) and an SQL
+query along with a set of bindings, and returns a list of objects.
+
+Example:
+```lisp
+(sql-to-objects (dbc my-db)
+                "SELECT * FROM users WHERE age < ?"
+                32)
+  => (<user hash> <user hash> ...)
+```
+
+This allows running direct queries on your data so you're not restricted to the
+obnoxious primitives you get below (which are convenience but limiting).
+
 
 ### db-get (function)
 ```lisp
@@ -172,5 +199,4 @@ Thrown when an object is passed to [db-insert](#db-insert-function) /
 ## License
 
 MIT.
-
 
