@@ -180,6 +180,22 @@
     (let ((num (sqlite:execute-single (dbc db) "SELECT COUNT(*) FROM users")))
       (is (= 0 num)))))
 
+(test (autoinc :depends-on db-delete)
+  (with-fixture db-conn ()
+    (let ((schema '(("queue"
+                     :id :rowid
+                     :indexes (("grabbed" . :integer)))))
+          (job (make-hash-table :test 'equal)))
+      (setf (gethash "task" job) "get a job")
+      (apply-schema db schema)
+      (vom:config :sqlite-obj :debug)
+      (let* ((job (db-save "queue" job))
+             (jobs (db-all "queue")))
+        (vom:config :sqlite-obj :warn)
+        (format t "jobs: ~a~%" (with-output-to-string (s) (yason:encode jobs s)))
+        (is (= 1 (gethash "id" job)))
+        (is (= 1 (gethash "id" (car jobs))))))))
+
 (defun run-tests ()
   (let ((test-db (test-db-name "test-db")))
     (when (probe-file test-db)

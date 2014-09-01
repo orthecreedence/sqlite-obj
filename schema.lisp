@@ -12,6 +12,7 @@
                   type)))
     (case type
       (:pkey "nvarchar(32) primary key")
+      (:rowid "integer primary key")
       (:id "nvarchar(32)")
       (:integer "integer")
       (:float "float")
@@ -42,29 +43,32 @@
 (defun create-table (db entry &key tmp-table)
   "Create a new table."
   (vom:debug "create-table: ~s" entry)
-  (sqlite:execute-non-query
-    (dbc db)
-    (with-output-to-string (s)
-      (format s "CREATE TABLE ~a (" (car entry))
-      (dolist (field (append '(("id" . :pkey))
-                             (getf (cdr entry) :indexes)
-                             `(("data" . ,(if (getf (cdr entry) :binary)
-                                              :binary
-                                              :text)))))
-        (format s "~a ~a~a"
-                (car field)
-                (transform-type-to-sql (cdr field))
-                (if (string= (car field) "data")
-                    ""
-                    ", ")))
-      (format s ")")))
+  (let* ((id-key (getf (cdr entry) :id))
+         (sql (with-output-to-string (s)
+                (format s "CREATE TABLE ~a (" (car entry))
+                (dolist (field (append (if id-key
+                                           (list (cons "id" id-key))
+                                           '(("id" . :pkey)))
+                                       (getf (cdr entry) :indexes)
+                                       `(("data" . ,(if (getf (cdr entry) :binary)
+                                                        :binary
+                                                        :text)))))
+                  (format s "~a ~a~a"
+                          (car field)
+                          (transform-type-to-sql (cdr field))
+                          (if (string= (car field) "data")
+                              ""
+                              ", ")))
+                (format s ")"))))
+    (vom:debug1 "create-table: sql: ~a~%" sql)
+    (sqlite:execute-non-query (dbc db) sql))
   (dolist (index (getf (cdr entry) :indexes))
     (let ((table (or tmp-table (car entry)))
           (name (car index)))
       (vom:debug "create-table: create-index: ~a_~a" table name)
-      (sqlite:execute-non-query
-        (dbc db)
-        (format nil "CREATE INDEX ~a_~a ON ~a (~a)" table name (car entry) name)))))
+      (let ((sql (format nil "CREATE INDEX ~a_~a ON ~a (~a)" table name (car entry) name)))
+        (vom:debug1 "create-table: create-index: sql: ~a" sql)
+        (sqlite:execute-non-query (dbc db) sql)))))
 
 (defun delete-table (db name)
   "Delete a table."
@@ -115,9 +119,7 @@
   "Reads the current schema, compares it to the given schema, and applies any
    required changes."
   (setf (schema db) schema)
-  (let* ((current (read-schema db))
-         (current-tables (mapcar 'car current))
-         (schema-tables (mapcar 'car schema)))
+  (let ((current (read-schema db)))
     ;; add new tables
     (dolist (entry (set-difference schema current :test (lambda (x y) (string= (car x) (car y)))))
       (create-table db entry))
@@ -129,4 +131,18 @@
       (let ((current-entry (find-if (lambda (x) (string= (car x) (car entry)))
                                     current)))
         (merge-table db current-entry entry)))))
+
+#|
+(defun test ()
+  (let ((db (db-open "c:/tmp/andrew.db"))
+        (schema '(("users"
+                   :id ("id" . :rowid)
+                   :indexes (("name" . :string))))))
+    (unwind-protect
+      (progn
+        (pprint (read-schema db))
+        (apply-schema db schema)
+        (pprint (read-schema db)))
+      (db-close db))))
+|#
 

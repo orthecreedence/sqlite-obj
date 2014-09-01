@@ -66,27 +66,33 @@
   (let* ((schema (get-table-schema-entry (schema db) table))
          (indexes (getf (cdr schema) :indexes))
          (binary (getf (cdr schema) :binary-data))
+         (id (gethash "id" data))
          (dbc (dbc db))
          (copy (clone-object data)))
     (unless schema
       (error 'db-missing-schema-entry :msg (format nil "The table `~a` isn't in the current schema" table)))
     (let* ((sql (with-output-to-string (s)
-                  (format s "INSERT ~a INTO ~a (id, "
+                  (format s "INSERT ~a INTO ~a (~a "
                           (if ignore
                               "OR IGNORE"
                               "")
-                          (or tmp-table table))
+                          (or tmp-table table)
+                          (if id
+                              "id, "
+                              ""))
                   (dolist (index indexes)
                     (format s "~a, " (car index)))
                   (format s "data) VALUES (")
-                  (dotimes (i (+ 1 (length indexes)))
+                  (dotimes (i (+ (if id 1 0)
+                                 (length indexes)))
                     (format s "?, "))
                   (format s "?)")))
            (statement (sqlite:prepare-statement dbc sql))
            (bindings nil))
-      (push (gethash "id" copy) bindings)
-      (sqlite:bind-parameter statement 1 (gethash "id" copy))
-      (loop for i from 2
+      (when id
+        (push (gethash "id" copy) bindings)
+        (sqlite:bind-parameter statement 1 (gethash "id" copy)))
+      (loop for i from (if id 2 1)
             for (index . nil) in indexes do
         (sqlite:bind-parameter statement i (gethash index copy))
         (push (gethash index copy) bindings)
@@ -96,11 +102,15 @@
                       (with-output-to-string (s)
                         (yason:encode copy s)))))
         (push body bindings)
-        (sqlite:bind-parameter statement (+ 2 (length indexes)) body))
+        (sqlite:bind-parameter statement (+ (if id 2 1) (length indexes)) body))
       (vom:debug "db-insert: sql: ~a ~s" sql (reverse bindings))
       (sqlite:step-statement statement)
       (sqlite:finalize-statement statement)
-      data)))
+      (let ((new-id (if id
+                        id
+                        (sqlite:last-insert-rowid (dbc db)))))
+        (setf (gethash "id" data) new-id)
+        data))))
 
 (defun db-update (table data &key (db *db*))
   "Update a local-DB backed object."
@@ -114,6 +124,7 @@
       (error 'db-missing-schema-entry :msg (format nil "The table `~a` isn't in the current schema" table)))
     (unless (gethash "id" data)
       (error 'db-update-missing-id :msg (format nil "Missing `id` field in update data (~a)" table)))
+    (format t "idddd ~a / ~a~%" (gethash "id" copy) (type-of (gethash "id" copy)))
     (let* ((field-values nil)
            (id (gethash "id" copy))
            (sql (with-output-to-string (s)
@@ -131,14 +142,15 @@
       (loop for i from 1
             for val in (reverse field-values) do
         (sqlite:bind-parameter statement i val))
+      (remhash "id" copy)
       (let ((body (if binary
                       (gethash "data" copy)
                       (with-output-to-string (s)
                         (yason:encode copy s)))))
+        (vom:debug "db-update: sql: ~a ~s" sql (append field-values
+                                                       (list body id)))
         (sqlite:bind-parameter statement (+ 1 (length field-values)) body))
       (sqlite:bind-parameter statement (+ 2 (length field-values)) id)
-      (vom:debug "db-update: sql: ~a ~s" sql (append field-values
-                                                     (list id :<body>)))
       (sqlite:step-statement statement)
       (sqlite:finalize-statement statement)
       data)))
@@ -146,7 +158,8 @@
 (defun db-save (table data &key (db *db*))
   "Perform an upsert of the given data."
   (db-insert table data :db db :ignore t)
-  (db-update table data :db db))
+  (db-update table data :db db)
+  data)
 
 (defun db-delete (table id &key (db *db*))
   "Delete an object by ID from the local DB."
